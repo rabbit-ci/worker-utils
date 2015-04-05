@@ -57,8 +57,8 @@ pub fn parse() -> Args {
     Args::docopt().decode().unwrap_or_else(|e| e.exit())
 }
 
-fn fetch_git_repo(repo_info: &RepoInfo) -> Box<TempDir> {
-    let z = Box::new(TempDir::new("temp_git_clone_dir").unwrap());
+fn fetch_git_repo(repo_info: &RepoInfo) -> TempDir {
+    let z = TempDir::new("temp_git_clone_dir").unwrap();
     let q = z.path().to_str().unwrap().to_string();
 
     let status = Command::new("git").arg("clone").arg(&repo_info.repo_url).arg(q).arg("--depth=30")
