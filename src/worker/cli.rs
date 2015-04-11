@@ -15,7 +15,6 @@ use std::io::Read;
 use std::process::Command;
 use std::process::ExitStatus;
 use std::path::Path;
-use std::fs;
 
 docopt!(pub Args derive Debug, "
 Usage:
@@ -42,10 +41,12 @@ pub fn extract_file(args: &Args) {
     }
 
     let clone_path = fetch_git_repo(&repo_info);
-    let filepath = Path::new(&clone_path).join(&args.flag_file);
+    let filepath = clone_path.path().join(&args.flag_file);
 
     let mut body = String::new();
-    let file = File::open(filepath).unwrap().read_to_string(&mut body);
+    let file = File::open(filepath).unwrap_or_else(|e| {
+        panic!("uh oh! Maybe this file doesn't exist. {:?}", e)
+    }).read_to_string(&mut body);
 
     if file.ok() == None {
         panic!("Could not get file!");
@@ -58,45 +59,40 @@ pub fn parse() -> Args {
     Args::docopt().decode().unwrap_or_else(|e| e.exit())
 }
 
-fn fetch_git_repo(repo_info: &RepoInfo) -> String {
-    let dir = "~/.rabbit-ci/tempgit".to_string();
-    fs::create_dir_all(&Path::new(&dir)).unwrap();
-    let output = Command::new("git").arg("clone").arg(&repo_info.repo_url).arg(&dir).arg("--depth=30")
+fn fetch_git_repo(repo_info: &RepoInfo) -> TempDir {
+    let z = TempDir::new("temp_git_clone_dir").unwrap();
+    let q = z.path().to_str().unwrap().to_string();
+
+    let output = Command::new("git").arg("clone").arg(&repo_info.repo_url).arg(q).arg("--depth=30")
         .output().unwrap_or_else(|e| {
             panic!("Failed to run git clone: {}", e)
         });
 
-    println!("status: {}", output.status);
-    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
-
-    
     let status = output.status;
     if !status.success() {
-        panic!("Git clone failed!");
+        panic!("Git clone failed! {}", String::from_utf8_lossy(&output.stderr));
     }
 
-    let status2 = checkout_commit(&repo_info.commit, &dir);
+    let status2 = checkout_commit(&repo_info.commit, z.path());
 
     if !status2.success() {
-        Command::new("git").arg("fetch").arg("--unshallow").current_dir(&dir)
+        let _ = Command::new("git").arg("fetch").arg("--unshallow").current_dir(z.path())
             .output();
-        let status2 = checkout_commit(&repo_info.commit, &dir);
+        let status2 = checkout_commit(&repo_info.commit, z.path());
 
         if !status2.success() {
             panic!("Cannot checkout commit")
         }
     }
 
-    dir
+    z
 }
 
-fn checkout_commit(commit: &String, dir: &String) -> ExitStatus {
+fn checkout_commit(commit: &String, dir: &Path) -> ExitStatus {
     let output = Command::new("git").arg("checkout").arg(commit).current_dir(dir)
-        .output().unwrap();
-    println!("status: {}", output.status);
-    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        .output().unwrap_or_else(|e| {
+            panic!("It was Steve! {:?}", e)
+        });
     output.status
 }
 
