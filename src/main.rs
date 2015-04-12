@@ -15,6 +15,7 @@ fn main() {
     let args: Args = cli::parse();
     match args {
         Args { cmd_extract_file: true, .. } => cli::extract_file(&args),
+        Args { flag_version: true, .. } => println!("worker-utils version 0.0.1"),
         _ => ()
     }
 }

@@ -20,11 +20,13 @@ docopt!(pub Args derive Debug, "
 Usage:
   worker extract-file <repo> <commit> [--file <arg>] [--help] [--git-only]
   worker --help
+  worker --version
 
 Options:
   -f --file <arg>  Files to extract from a git repo [default: rabbitci.json].
   -h --help        Show this screen.
   --git-only       Disable direct github download.
+  --version        Get version
 ");
 
 pub fn extract_file(args: &Args) {
